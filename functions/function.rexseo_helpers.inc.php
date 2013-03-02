@@ -6,6 +6,7 @@
  *
  * @author dh[at]gn2-netwerk[dot]de Dave Holloway
  * @author code[at]rexdev[dot]de jdlx
+ * @author master[at]link-igor[dot]de sigger
  *
  * Based on url_rewrite Addon by
  * @author markus.staab[at]redaxo[dot]de Markus Staab
@@ -264,7 +265,7 @@ if (!function_exists('echotextile'))
     global $REX;
     if(OOAddon::isAvailable("textile")) {
       if($msg!='') {
-         $msg = str_replace("	","",$msg); // tabs entfernen
+         $msg = str_replace("  ","",$msg); // tabs entfernen
          if(rex_lang_is_utf8()) {
           echo rex_a79_textile($msg);
         } else {
@@ -417,16 +418,20 @@ function rexseo_setup_metainfo()
     return;
   }
 
+// Added by Sig ->
   $install_metas = array(
     'art_rexseo_legend'         => array('RexSEO Rewrite',              'art_rexseo_legend',        100,    '',         12,     '',       '',                                                                                                     '',               ''),
     'art_rexseo_url'            => array('Custom URL',                  'art_rexseo_url',           101,    '',          1,     '',       '',                                                                                                     '',               ''),
     'art_rexseo_canonicalurl'   => array('Custom Canonical URL',        'art_rexseo_canonicalurl',  102,    '',          1,     '',       '',                                                                                                     '',               ''),
     'art_rexseo_title'          => array('Custom Page Title',           'art_rexseo_title',         103,    '',          1,     '',       '',                                                                                                     '',               ''),
-    'art_rexseo_sitemap_legend' => array('RexSEO Sitemap',              'art_rexseo_sitemap_legend',104,    '',         12,     '',       '',                                                                                                     '',               ''),
-    'art_rexseo_priority'       => array('Sitemap Priority',            'art_rexseo_priority',      105,    '',          3,     '',       ':auto|1.00:1.00|0.80:0.80|0.64:0.64|0.51:0.51|0.33:0.33|0.00:0.00',                                    '',               ''),
-    'art_rexseo_changefreq'     => array('Sitemap Changefreq',          'art_rexseo_changefreq',    105,    '',          3,     '',       ':auto|never:never|yearly:yearly|monthly:monthly|weekly:weekly|daily:daily|hourly:hourly|always:always','',               ''),
-    'art_rexseo_sitemap_out'    => array('Sitemap Output',              'art_rexseo_sitemap_out',   106,    '',          3,     '',       ':auto|show:show|hide:hide',                                                                            '',               ''),
+    'art_rexseo_exclude'        => array('Exclude Article',             'art_rexseo_exclude',       104,    '',          5,     '',       '',                                                                                                     '',               ''),
+    'art_rexseo_redir_path'     => array('Redirect Path',               'art_rexseo_redir_path',    105,    '',          8,     '',       '',                                                                                                '',               ''),
+    'art_rexseo_sitemap_legend' => array('RexSEO Sitemap',              'art_rexseo_sitemap_legend',106,    '',         12,     '',       '',                                                                                                     '',               ''),
+    'art_rexseo_priority'       => array('Sitemap Priority',            'art_rexseo_priority',      107,    '',          3,     '',       ':auto|1.00:1.00|0.80:0.80|0.64:0.64|0.51:0.51|0.33:0.33|0.00:0.00',                                    '',               ''),
+    'art_rexseo_changefreq'     => array('Sitemap Changefreq',          'art_rexseo_changefreq',    108,    '',          3,     '',       ':auto|never:never|yearly:yearly|monthly:monthly|weekly:weekly|daily:daily|hourly:hourly|always:always','',               ''),
+    'art_rexseo_sitemap_out'    => array('Sitemap Output',              'art_rexseo_sitemap_out',   109,    '',          3,     '',       ':auto|show:show|hide:hide',                                                                            '',               ''),
     );
+// Added by Sig <-
 
   $db = new rex_sql;
   foreach($db->getDbArray('SHOW COLUMNS FROM `rex_article` LIKE \'art_rexseo_%\';') as $column)
