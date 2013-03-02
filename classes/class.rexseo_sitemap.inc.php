@@ -6,6 +6,7 @@
  *
  * @author dh[at]gn2-netwerk[dot]de Dave Holloway
  * @author code[at]rexdev[dot]de jdlx
+ * @author master[at]link-igor[dot]de sigger
  *
  * Based on url_rewrite Addon by
  * @author markus.staab[at]redaxo[dot]de Markus Staab
@@ -13,6 +14,16 @@
  * @package redaxo 4.3.x/4.4.x
  * @version 1.5.4
  */
+// Added by Sig ->
+function sortArticlesByPriority($arrA, $arrB) {
+  $createA = floatval(str_replace(",",".",$arrA[0]["priority"]));
+  $createB = floatval(str_replace(",",".",$arrB[0]["priority"]));
+
+  if ( $createA == $createB)
+    return 0;
+  return $createA > $createB ? -1 : 1;
+}
+// Added by Sig <-
 
 class rexseo_sitemap
 {
@@ -20,6 +31,63 @@ class rexseo_sitemap
   private $mode;
   private $db_articles;
 
+// Added by Sig ->
+  /**
+   * GET UNIQUE ENTRIES BY ATTRIBUTE
+   * Parameters:
+   * $att = attribute of the array
+   * $dbarticles = a not unique array
+   * @return (array) unique sitemap articles by attribute
+   */
+  private function getUniqueBy($att, $dbarticles) {
+    // keep only unique values... skip duplicates
+    foreach($dbarticles as $key => $art) {
+      for($i=0; $i<count($art); $i++) {
+        $t1 = $art[$i][$att];
+        for($j=($i+1); $j<count($art); $j++) {
+          $t2 = $art[$j][$att];
+          if($t1 != $t2) {
+            $cnt = 0;
+            for($ki=0; $ki<count($result); $ki++) {
+              for($k=0; $k<count($result[$ki]); $k++) {
+                $t3 = $result[$ki][$k][$att];
+                if($t1 == $t3) {
+                  $cnt++;
+                  break;
+                }
+              }
+            }
+            if($cnt == 0) {
+              $result[] = $dbarticles[$key];
+              break;
+            } else {
+              break;
+            }
+          } // else if($t1 == $t2)
+        }
+        if(($i+1) >= count($art)) {
+          $cnt = 0;
+          for($ki=0; $ki<count($result); $ki++) {
+            for($k=0; $k<count($result[$ki]); $k++) {
+              $t3 = $result[$ki][$k][$att];
+              if($t1 == $t3) {
+                $cnt++;
+                break;
+              }
+            }
+          }
+          if($cnt == 0) {
+            $result[] = $dbarticles[$key];
+            break;
+          } else {
+            break;
+          }
+        }
+      }
+    }
+    return $result;
+  }
+// Added by Sig <-
 
   /**
    * GET SITEMAP ARTICLES FROM DB
@@ -44,6 +112,13 @@ class rexseo_sitemap
                                                        'priority'   => self::calc_article_priority($art['id'],$art['clang'],$art['path'],$art['art_rexseo_priority'])
                                                        );
     }
+
+// Added by Sig ->
+    // sort by priority
+    usort($db_articles, "sortArticlesByPriority");
+    // remove double locs
+    $db_articles = $this->getUniqueBy('loc', $db_articles);
+// Added by Sig <-
 
     // EXTENSIONPOINT REXSEO_SITEMAP_ARRAY_CREATED
     $db_articles = rex_register_extension_point('REXSEO_SITEMAP_ARRAY_CREATED',$db_articles);
