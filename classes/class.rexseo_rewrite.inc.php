@@ -6,6 +6,7 @@
  *
  * @author dh[at]gn2-netwerk[dot]de Dave Holloway
  * @author code[at]rexdev[dot]de jdlx
+ * @author master[at]link-igor[dot]de sigger
  *
  * Based on url_rewrite Addon by
  * @author markus.staab[at]redaxo[dot]de Markus Staab
@@ -479,6 +480,8 @@ function rexseo_generate_pathlist($params)
 {
   global $REX, $REXSEO_IDS, $REXSEO_URLS;
 
+$incomplete = false;
+
   if(file_exists(REXSEO_PATHLIST))
   {
     require_once (REXSEO_PATHLIST);
@@ -503,15 +506,16 @@ function rexseo_generate_pathlist($params)
       rexseo_unset_pathitem($params['id']);
       break;
     case 'CAT_ADDED':
-    case 'CAT_UPDATED':
     case 'ART_ADDED':
-    case 'ART_UPDATED':
-    case 'ART_TO_CAT':
-    case 'CAT_TO_ART':
-    case 'ART_META_FORM_SECTION':
+
       $where = '(id='. $params['id'] .' AND clang='. $params['clang'] .') OR (path LIKE "%|'. $params['id'] .'|%" AND clang='. $params['clang'] .')';
       break;
     // ------- alles aktualisieren
+    case 'CAT_UPDATED': // Added by Sig ->// Added by Sig <-
+    case 'ART_UPDATED': // Added by Sig ->// Added by Sig <-
+    case 'ART_TO_CAT': // Added by Sig ->// Added by Sig <-
+    case 'CAT_TO_ART': // Added by Sig ->// Added by Sig <-
+    case 'ART_META_FORM_SECTION': // Added by Sig ->// Added by Sig <-
     case 'CLANG_ADDED':
     case 'CLANG_UPDATED':
     case 'CLANG_DELETED':
@@ -545,6 +549,7 @@ function rexseo_generate_pathlist($params)
 
     while($db->hasNext())
     {
+      $name       = '';
       $pathname   = '';
       $id         = $db->getValue('id');
       $clang      = $db->getValue('clang');
@@ -590,8 +595,28 @@ function rexseo_generate_pathlist($params)
               RexseoRewrite::logError('couldn\'t create OOCategory object with params id='.$p.'/clang='.$clang.'',E_USER_WARNING);
               continue;
             }
-
-            $name = $ooc->getName();
+// Added by Sig ->
+            // use "rexseo_title"/"Custom Page Title" as new category name
+            // $name = $ooc->getName();
+            // category name
+            $twhere = "`id` = '".$p."'";
+            $tdb = new rex_sql();
+            $tdb->setQuery('SELECT `art_rexseo_title`,`art_rexseo_exclude`,`art_rexseo_redir_path` FROM '. $REX['TABLE_PREFIX'] .'article WHERE '. $twhere.' AND revision=0 OR revision IS NULL');
+            $rexseo_exclude = (bool) trim($tdb->getValue('art_rexseo_exclude'), '|');
+            $rexseo_title = trim($tdb->getValue('art_rexseo_title'));
+            $rexseo_redir_path_id = trim($tdb->getValue('art_rexseo_redir_path'));
+            
+            if($rexseo_exclude) {
+              $name = "";
+            } else {
+              if($rexseo_title != "")
+                $name = $rexseo_title;
+              else
+                $name = $ooc->getName();
+            }
+            unset($twhere);
+            unset($tdb);
+// Added by Sig <-
             unset($ooc);
 
             $pathname = rexseo_appendToPath($pathname, $name, $id, $clang);
@@ -599,6 +624,58 @@ function rexseo_generate_pathlist($params)
         }
 
         $ooa = OOArticle::getArticleById($id, $clang);
+
+// Added by Sig ->
+        // article name
+        $twhere = "`id` = '".$id."'";
+        $tdb = new rex_sql();
+        $tdb->setQuery('SELECT `art_rexseo_title`,`art_rexseo_exclude`,`art_rexseo_redir_path` FROM '. $REX['TABLE_PREFIX'] .'article WHERE '. $twhere.' AND revision=0 OR revision IS NULL');
+        $rexseo_exclude = (bool) trim($tdb->getValue('art_rexseo_exclude'), '|');
+        $rexseo_title = trim($tdb->getValue('art_rexseo_title'));
+        $rexseo_redir_path_id = trim($tdb->getValue('art_rexseo_redir_path'));
+
+        // check for a redirection
+        if($rexseo_redir_path_id != "") {
+          if(array_key_exists($rexseo_redir_path_id, $REXSEO_IDS) && $REXSEO_IDS[$rexseo_redir_path_id][$clang]['url'] != "") {
+            $REXSEO_IDS[$id][$clang] = $REXSEO_IDS[$rexseo_redir_path_id][$clang];
+            $pathname = $REXSEO_IDS[$rexseo_redir_path_id][$clang]['url'];
+          } else {
+            // the requested "id" is not in the $REXSEO_IDS yet... 
+            // change state to "incomplete" to solve it later and remember where it was to reduce the complexity as $tParams
+            $incomplete = true;
+            $tmp['extension_point'] = 'ART_ADDED';
+            $tmp['id'] = $id;
+            $tmp['clang'] = $clang;
+            $tParams[] = $tmp;
+            unset($tmp);
+          }
+          // skip this article
+          $db->next();
+          continue;
+        }
+
+        // is this article excluded?
+        if($rexseo_exclude) {
+          // skip this article
+          $db->next();
+          continue;
+        }
+
+        // no exclude, no redirect
+        if($rexseo_title != "") {
+          $name = $rexseo_title;
+        } else {
+          if($ooa->isStartArticle()) {
+            $ooc = $ooa->getCategory();
+            $name = $ooc->getName();
+            unset($ooc);
+          } else {
+            $name = $ooa->getName();
+          }
+        }
+        unset($twhere);
+        unset($tdb);
+// Added by Sig <-
 
         // PREVENT FATALS IN RARE CONDITIONS WHERE DB/CACHE ARE OUT OF SYNC
         if(!is_a($ooa,'OOArticle')){
@@ -609,9 +686,12 @@ function rexseo_generate_pathlist($params)
 
         if($ooa->isStartArticle())
         {
-          $ooc = $ooa->getCategory();
-          $catname = $ooc->getName();
-          unset($ooc);
+// Added by Sig ->
+          // $ooc = $ooa->getCategory();
+          // $catname = $ooc->getName();
+          $catname = $name;
+          // unset($ooc);
+// Added by Sig <-
           $pathname = rexseo_appendToPath($pathname, $catname, $id, $clang);
         }
 
@@ -620,7 +700,7 @@ function rexseo_generate_pathlist($params)
           if(!$ooa->isStartArticle())
           {
           // eigentlicher artikel anhängen
-          $name = $ooa->getName();
+          // $name = $ooa->getName(); // Added by Sig ->// Added by Sig <-
           unset($ooa);
           $pathname = rexseo_appendToPath($pathname, $name, $id, $clang);
           }
@@ -628,7 +708,7 @@ function rexseo_generate_pathlist($params)
         else
         {
           // eigentlicher artikel anhängen
-          $name = $ooa->getName();
+          // $name = $ooa->getName(); // Added by Sig ->// Added by Sig <-
           unset($ooa);
           $pathname = rexseo_appendToPath($pathname, $name, $id, $clang);
         }
@@ -682,6 +762,14 @@ function rexseo_generate_pathlist($params)
 
   // PURGE *.CONTENT CACHEFILES TO UPDATE INTERNAL LINKS CREATED BY replceLinks() in rex_article_base
   rexseo_purgeCacheFiles();
+
+// Added by Sig ->
+  if($incomplete) {
+    // retrive the missing informations for the incomplete links
+    foreach($tParams as $param)
+      rexseo_generate_pathlist($param);
+  }
+// Added by Sig <-
 }
 
 
